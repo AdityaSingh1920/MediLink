@@ -1,0 +1,15 @@
+# ---------- Production Dockerfile for Render ----------
+FROM node:18
+
+WORKDIR /server
+
+COPY package*.json ./
+RUN npm install --omit=dev
+
+COPY . .
+
+EXPOSE 5000
+
+
+# Start only the main server, not nodemon
+CMD ["npm", "run", "start"]
