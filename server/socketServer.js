@@ -25,23 +25,16 @@ const io = new Server(server, {
 // Register socket instance globally for use in other controllers
 registerSocket(io);
 
-//Socket Authentication Middleware
-// This middleware runs before each socket connection is established.
+
 io.use((socket, next) => {
   try {
-    // Extract cookies from the socket handshake headers
-    const cookies = cookie.parse(socket.handshake.headers.cookie || "");
-    const token = cookies.token; // Token name must match the cookie used in login
+    // Get token from handshake auth
+    const token = socket.handshake.auth.token;
 
-    // If token is missing, reject the connection
     if (!token) return next(new Error("No authentication token found"));
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Attach user details to the socket object for later use
     socket.user = { id: decoded.id };
-
-    // Proceed to connection
     next();
   } catch (error) {
     console.error("Socket authentication failed:", error.message);
@@ -52,7 +45,6 @@ io.use((socket, next) => {
 //Socket Event Handlers
 // Handles connection, joining chat rooms, sending messages, and disconnection events.
 io.on("connection", (socket) => {
-
   // Join a chat room based on the listing ID
   socket.on("joinRoom", async ({ listingId }) => {
     // Find the chat associated with the listing
@@ -99,13 +91,10 @@ io.on("connection", (socket) => {
     io.to(listingId).emit("receiveMessage", message);
   });
 
-
   socket.on("disconnect", () => {
     // console.log("User disconnected:", socket.user.id);
   });
 });
-
-
 
 const SOCKET_PORT = process.env.SOCKET_PORT || 5001;
 

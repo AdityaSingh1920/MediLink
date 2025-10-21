@@ -4,11 +4,11 @@ import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { chatApi } from "../services/chatService";
 import { useChatSocket } from "../hooks/useChatHook";
+import Sidebar from "../components/SideBar";
 
 import {
   MessageCircle,
   Send,
-  Search,
   MoreVertical,
   Phone,
   Video,
@@ -17,7 +17,6 @@ import {
   CheckCheck,
   MapPin,
   Menu,
-  X,
 } from "lucide-react";
 
 import { Button } from "../../../shared/components/ui/Button";
@@ -43,10 +42,15 @@ export function ChatPage() {
   const messagesEndRef = useRef(null);
 
   const { sendMessage } = useChatSocket(listingId, (message) => {
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => {
+      const exists = prev.some(
+        (m) => m.text === message.text && m.senderId === message.senderId
+      );
+      return exists ? prev : [...prev, message];
+    });
   });
 
-  // Fetch chats
+  // Fetch all user chats
   useEffect(() => {
     const fetchChats = async () => {
       try {
@@ -60,7 +64,7 @@ export function ChatPage() {
     fetchChats();
   }, []);
 
-  // Fetch messages
+  // Fetch messages for current listing
   useEffect(() => {
     const fetchMessages = async () => {
       if (!listingId) return;
@@ -71,18 +75,28 @@ export function ChatPage() {
     fetchMessages();
   }, [listingId]);
 
-  // Auto-scroll
+  // Auto-scroll when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Send a message
   const handleSend = (e) => {
     e.preventDefault();
     if (!messageInput.trim()) return;
+
+    const newMessage = {
+      senderId: userInfo?._id,
+      text: messageInput,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
     sendMessage(messageInput);
     setMessageInput("");
   };
 
+  // Share location
   const handleShareLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Geolocation not supported on this browser.");
@@ -102,104 +116,51 @@ export function ChatPage() {
     );
   };
 
-  const filteredChats = chatList.filter(
-    (chat) =>
-      chat.participantName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      chat.listingTitle?.toLowerCase().includes(searchQuery.toLowerCase())
+  // Group chats by participant
+  const groupedChats = chatList.reduce((acc, chat) => {
+    const key = chat.participantId;
+    if (!acc[key]) {
+      acc[key] = {
+        participantId: chat.participantId,
+        participantName: chat.participantName,
+        avatar: chat.avatar,
+        chats: [],
+      };
+    }
+    acc[key].chats.push({
+      listingId: chat.listingId,
+      listingTitle: chat.listingTitle,
+      updatedAt: chat.updatedAt,
+      lastMessage: chat.lastMessage,
+    });
+    return acc;
+  }, {});
+
+  // Filtered groups for search
+  const filteredGroupedChats = Object.values(groupedChats).filter(
+    (group) =>
+      group.participantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.chats.some((chat) =>
+        chat.listingTitle.toLowerCase().includes(searchQuery.toLowerCase())
+      )
   );
 
   const selectedChat = chatList.find((c) => c.listingId === listingId);
 
-  //  Sidebar Component
-  const Sidebar = () => (
-    <aside
-      className={`fixed md:relative top-0 left-0 h-full md:h-auto w-72 md:w-[25%] bg-[var(--color-surface)] border-r border-[var(--color-border)] z-40 transform transition-transform duration-300 ease-in-out
-      ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
-    >
-      <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-card)] sticky top-0 z-10 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Messages</h2>
-        <Badge variant="secondary">{chatList.length}</Badge>
-        <button
-          className="md:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-          onClick={() => setSidebarOpen(false)}
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="p-3 border-b border-[var(--color-border)]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] w-4 h-4" />
-          <Input
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-[var(--color-background)] border-[var(--color-border)]"
-          />
-        </div>
-      </div>
-
-      {/* Chat list */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin hover:scrollbar-thumb-accent p-3 space-y-2">
-        {filteredChats.length > 0 ? (
-          filteredChats.map((chat) => (
-            <div
-              key={chat.chatId}
-              onClick={() => {
-                navigate(`/chat/${chat.listingId}`);
-                setSidebarOpen(false);
-              }}
-              className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                listingId === chat.listingId
-                  ? "bg-[var(--color-accent)]/40"
-                  : "hover:bg-[var(--color-surface)]"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarImage src={chat.avatar} />
-                  <AvatarFallback>
-                    {chat.participantName?.[0] || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm truncate">
-                      {chat.participantName}
-                    </h3>
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {new Date(chat.updatedAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--color-text-muted)] truncate">
-                    {chat.lastMessage}
-                  </p>
-                  <Badge variant="outline" className="text-xs mt-1">
-                    {chat.listingTitle}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-center text-[var(--color-text-muted)] mt-10">
-            No chats found
-          </p>
-        )}
-      </div>
-    </aside>
-  );
-
   return (
     <div className="relative w-full h-[calc(100vh-4rem)] flex bg-[var(--color-background)] rounded-xl overflow-hidden border border-[var(--color-border)] shadow-soft">
-      {/*  Sidebar for desktop & slide-in on mobile */}
-      <Sidebar />
+      {/* Sidebar */}
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        chatList={chatList}
+        filteredGroupedChats={filteredGroupedChats}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        listingId={listingId}
+        navigate={navigate}
+      />
 
-      {/*  Overlay when sidebar is open on mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
@@ -343,7 +304,7 @@ export function ChatPage() {
             </div>
           </>
         ) : (
-          // Empty screen on mobile (no chat selected)
+          // Empty State
           <div className="flex-1 flex items-center justify-center relative">
             <button
               onClick={() => setSidebarOpen(true)}

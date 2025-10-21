@@ -1,60 +1,70 @@
 import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
+import { store } from "../../../core/store/store";
 
 export function useChatSocket(listingId, onMessage) {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    // Wait until we actually have a listingId
     if (!listingId) {
       console.warn("Waiting for listingId...");
       return;
     }
 
-    // console.log(" Connecting socket (cookie-based auth)...");
+    let socket;
 
-    // Create socket connection
-    const socket = io("http://localhost:5001", {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    const connectSocket = () => {
+      const currentToken = store.getState().auth.accessToken;
 
-    socketRef.current = socket;
+      socket = io("http://localhost:5001", {
+        withCredentials: true,
+        transports: ["websocket", "polling"],
+        auth: { token: currentToken },
+      });
 
-    // Join the room for the current listing
-    socket.emit("joinRoom", { listingId });
+      socketRef.current = socket;
 
-    // Listen for incoming messages safely
-    socket.on("receiveMessage", (message) => {
-      if (typeof onMessage === "function") {
-        onMessage(message);
-      } else {
-        console.error(" onMessage is not a function", onMessage);
-      }
-    });
+      socket.emit("joinRoom", { listingId });
 
-    socket.on("connect", () => {
-  
-    });
+      socket.on("receiveMessage", (message) => {
+        if (typeof onMessage === "function") onMessage(message);
+      });
 
-    socket.on("disconnect", () => {
-  
-    });
+      socket.on("connect", () => {
+        // console.log("Socket connected");
+      });
 
-    socket.on("error", (err) => {
-      console.error(" Socket error:", err);
-    });
+      socket.on("disconnect", (reason) => {
+        // console.log(" Socket disconnected:", reason);
+      });
 
-    // Cleanup on unmount or change
+      socket.on("error", (err) => {
+        // console.error(" Socket error:", err.message);
+      });
+
+      //  Detect JWT expiration and reconnect automatically
+      socket.on("connect_error", (err) => {
+        if (err.message?.includes("jwt expired")) {
+          console.warn(" JWT expired — reconnecting with fresh token...");
+          socket.disconnect();
+
+          // wait a moment so Axios refresh can run and update Redux
+          setTimeout(() => {
+            connectSocket();
+          }, 1000);
+        } else {
+          console.error("Socket connection error:", err.message);
+        }
+      });
+    };
+
+    connectSocket();
+
     return () => {
-      if (socketRef.current) {
-    
-        socketRef.current.disconnect();
-      }
+      socket?.disconnect();
     };
   }, [listingId, onMessage]);
 
-  //  Function to send a message
   const sendMessage = (text) => {
     if (!socketRef.current || !listingId) return;
     socketRef.current.emit("sendMessage", { listingId, text });

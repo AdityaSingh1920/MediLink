@@ -4,9 +4,10 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import generateOtp from "../utils/generateOtp.js";
 import { sendVerificationMail } from "../helper/verificationMail.js";
+import { generateTokens } from "../utils/generateTokens.js";
 dotenv.config();
 
-// signup 
+// signup
 export const signup = async (req, res) => {
   try {
     const { name, email, password, phone, city } = req.body;
@@ -69,15 +70,20 @@ export const signup = async (req, res) => {
   }
 };
 
-// verify 
+// verify
 export const verifyEmail = async (req, res) => {
   try {
     const { email, code } = req.body;
     const user = await User.findOne({ email });
 
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     if (user.isVerified)
-      return res.status(400).json({success: false, message: "Already verified" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Already verified" });
 
     if (user.verificationCodeExpires < Date.now()) {
       const { code, expires, lastOtpSentAt } = await generateOtp(email);
@@ -109,7 +115,7 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
-// login 
+// login
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -125,39 +131,70 @@ export const login = async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    const { accessToken, refreshToken } = generateTokens(user);
 
-    res.cookie("token", token, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/",
     });
-
-    // console.log("Cookie sent:", res.getHeaders()["set-cookie"]);
 
     res.json({
       success: true,
       message: "Login successful",
-      user,
+      accessToken,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        city: user.city,
+        phone: user.phone,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// logout 
-export const logout = (req, res) => {
-  res.clearCookie("token");
-  res.json({ message: "Logged out successfully" });
+//  Refresh
+export const refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken)
+      return res.status(401).json({ success: false, message: "No refresh token" });
+
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(401).json({ success: false, message: "User not found" });
+
+    const newAccessToken = jwt.sign(
+      { id: user._id, role: user.role, name: user.name },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    res.json({ success: true, accessToken: newAccessToken });
+  } catch (err) {
+    res.status(401).json({ success: false, message: "Invalid refresh token" });
+  }
 };
 
-// delete account 
+
+// logout
+export const logout = (req, res) => {
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+  res.json({ success: true, message: "Logged out" });
+};
+
+// delete account
 export const deleteAccount = async (req, res) => {
   try {
     const { id } = req.params;
