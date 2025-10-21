@@ -4,15 +4,13 @@ dotenv.config();
 
 
 // Authentication Middleware
-// Verifies the JWT token from cookies or Authorization headers
-// Attaches the authenticated user details to the request object for later use
 export const authMiddleware = async (req, res, next) => {
   try {
-    // Try to read token from cookies
-    let token = req.cookies.token;
 
-    // If not found in cookies, try to extract from Authorization header
-    if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    let token = null
+
+    // Extract token from Authorization header
+     if (req.headers.authorization?.startsWith("Bearer ")) {
       token = req.headers.authorization.split(" ")[1];
     }
 

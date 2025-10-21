@@ -23,7 +23,7 @@ const LoginForm = () => {
       dispatch(
         loginSuccess({
           user: result.data.user,
-          token: result.data.token,
+          accessToken: result.data.accessToken,
         })
       );
       toast.success("Login successful!");
