@@ -16,7 +16,7 @@ export function useChatSocket(listingId, onMessage) {
     const connectSocket = () => {
       const currentToken = store.getState().auth.accessToken;
 
-      socket = io("http://localhost:5001", {
+      socket = io("https://medilink-od6x.onrender.com", {
         withCredentials: true,
         transports: ["websocket", "polling"],
         auth: { token: currentToken },
