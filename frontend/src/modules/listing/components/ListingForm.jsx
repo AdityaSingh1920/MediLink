@@ -11,7 +11,7 @@ import {
   CardContent,
 } from "../../../shared/components/ui/Card";
 import { Input } from "../../../shared/components/ui/Input";
-import { Textarea } from "../../../shared/components/ui/Textarea";
+import { Textarea } from "../../../shared/components/ui/TextArea";
 import { Button } from "../../../shared/components/ui/Button";
 import {
   Select,
