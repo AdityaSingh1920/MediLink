@@ -13,7 +13,7 @@ import heroImage from "../../../assets/hero-medilink.jpg";
 import Footer from "../../../shared/components/layouts/Footer";
 
 export function LandingPage() {
-  const isAuthenticated = !!localStorage.getItem("token");
+  const isAuthenticated = !!localStorage.getItem("accessToken");
 
   const features = [
     {
