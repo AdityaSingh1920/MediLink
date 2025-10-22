@@ -5,9 +5,9 @@ WORKDIR /server
 # Copy package.json and package-lock.json first for caching
 COPY package*.json ./
 
-# RUN npm install
-# Install only production dependencies
-RUN npm ci --only=production
+RUN npm install
+
+
 
 
 COPY . .
