@@ -30,17 +30,31 @@ app.use(express.json());
 
 
 const allowedOrigins = process.env.FRONTEND_URLS?.split(",") || [];
+
 app.use(
   cors({
-    origin(origin, cb) {
-      if (!origin || allowedOrigins.includes(origin)) cb(null, true);
-      else cb(new Error("Not allowed by CORS"));
+    origin: (origin, cb) => {
+      // Allow requests with no origin (Postman, mobile apps, etc.)
+      if (!origin) return cb(null, true);
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      
+      // Allow any *.vercel.app domain (for preview deployments)
+      if (origin && origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        return cb(null, true);
+      }
+      
+      console.log(' CORS blocked origin:', origin);
+      cb(new Error("Not allowed by CORS"));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+
 
 
 
@@ -54,14 +68,21 @@ app.use("/api/leaderboard", leaderBoardRoutes);
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
 
+// Update Socket.io CORS too
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      if (origin && origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        return cb(null, true);
+      }
+      cb(new Error("Not allowed by CORS"));
+    },
     credentials: true,
+    methods: ["GET", "POST"],
   },
 });
-
-registerSocket(io);
 
 
 io.use((socket, next) => {
