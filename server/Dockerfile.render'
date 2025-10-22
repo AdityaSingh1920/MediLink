@@ -1,4 +1,4 @@
-# ---------- Production Dockerfile for Render ----------
+
 FROM node:18
 
 WORKDIR /server

@@ -16,10 +16,17 @@ export function useChatSocket(listingId, onMessage) {
     const connectSocket = () => {
       const currentToken = store.getState().auth.accessToken;
 
-      socket = io("https://medilink-od6x.onrender.com", {
+
+      const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') 
+        || "https://medilink-od6x.onrender.com";
+
+      socket = io(SOCKET_URL, {
         withCredentials: true,
         transports: ["websocket", "polling"],
         auth: { token: currentToken },
+        reconnection: true, // Enable automatic reconnection
+        reconnectionDelay: 1000, // Wait 1s before reconnecting
+        reconnectionAttempts: 5, // Try 5 times before giving up
       });
 
       socketRef.current = socket;
@@ -61,6 +68,7 @@ export function useChatSocket(listingId, onMessage) {
     connectSocket();
 
     return () => {
+        socket.removeAllListeners();
       socket?.disconnect();
     };
   }, [listingId, onMessage]);
