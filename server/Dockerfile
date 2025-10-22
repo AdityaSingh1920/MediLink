@@ -5,11 +5,21 @@ WORKDIR /server
 # Copy package.json and package-lock.json first for caching
 COPY package*.json ./
 
-RUN npm install
+# RUN npm install
+# Install only production dependencies
+RUN npm ci --only=production
+
 
 COPY . .
 
-# Expose backend port
-EXPOSE 5000
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
 
-CMD [ "npm","run","dev" ]
+# Expose backend port
+# EXPOSE 5000
+
+# Expose port for Koyeb
+EXPOSE 8080
+
+CMD ["node", "index.js"]
