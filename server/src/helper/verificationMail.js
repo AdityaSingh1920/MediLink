@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export const sendVerificationMail = async (email, code) => {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'MediLink <onboarding@resend.dev>',
+      from: 'MediLink <onboarding@resend.dev>',   
       to: email,
       subject: 'Verify Your MediLink Account',
       html: `
