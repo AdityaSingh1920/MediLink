@@ -1,14 +1,25 @@
-import { Resend } from 'resend';
-import dotenv from 'dotenv'
+import nodemailer from "nodemailer";
+import dotenv from 'dotenv';
 
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false
+  }
+});
 
 export const sendVerificationMail = async (email, code) => {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'MediLink <onboarding@resend.dev>',   
+    const info = await transporter.sendMail({
+      from: '"MediLink" <' + process.env.EMAIL_USER + '>',
       to: email,
       subject: 'Verify Your MediLink Account',
       html: `
@@ -36,15 +47,10 @@ export const sendVerificationMail = async (email, code) => {
       `
     });
 
-    if (error) {
-      console.error(' Resend error:', error);
-      throw new Error(error.message);
-    }
-
-    console.log('Verification email sent successfully:', data);
-    return data;
+    console.log("Verification email sent successfully:", info.messageId);
+    return { success: true, info };
   } catch (error) {
-    console.error('Error sending verification email:', error);
+    console.error("Error sending verification email:", error);
     throw error;
   }
 };
