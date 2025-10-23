@@ -39,6 +39,7 @@ export const getUserChats = async (req, res) => {
         listingId: chat.listingId?._id,
         listingTitle: chat.listingId?.title || "Untitled Listing",
         participantName: otherUser?.name || "Unknown",
+        participantId: otherUser?._id.toString(),
         avatar: otherUser?.avatar || "",
         lastMessage: lastMessage?.text || "No messages yet",
         updatedAt: chat.updatedAt,

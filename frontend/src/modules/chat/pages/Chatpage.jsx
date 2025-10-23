@@ -118,6 +118,11 @@ export function ChatPage() {
 
   // Group chats by participant
   const groupedChats = chatList.reduce((acc, chat) => {
+    // Skip if participantId is missing or equals current user (safety check)
+    if (!chat.participantId || chat.participantId === userInfo?._id) {
+      return acc;
+    }
+
     const key = chat.participantId;
     if (!acc[key]) {
       acc[key] = {
