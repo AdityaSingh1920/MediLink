@@ -7,9 +7,6 @@ COPY package*.json ./
 
 RUN npm install
 
-
-
-
 COPY . .
 
 # Set environment variables
